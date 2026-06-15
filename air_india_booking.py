@@ -202,6 +202,85 @@ st.markdown("""
         padding: 10px 32px !important;
     }
     .stButton > button:hover { background-color: #a00d24 !important; }
+
+    /* ─────────────────────────────────────────
+       DARK MODE – activates automatically when the
+       user's OS / browser is set to dark
+    ───────────────────────────────────────────── */
+    @media (prefers-color-scheme: dark) {
+        .stApp { background-color: #0e1117; }
+
+        .ai-nav {
+            background: #181c24;
+            border-bottom: 1px solid #2a2f3a;
+        }
+
+        .stepper {
+            background: #181c24;
+            border-bottom: 1px solid #2a2f3a;
+        }
+        .step { color: #7d8597; }
+        .step.active { color: #ff5c72; border-bottom: 3px solid #ff5c72; }
+        .step.done   { color: #3ddc84; border-bottom: 3px solid #3ddc84; }
+        .step-num { background: #3a3f4b; color: #e6e6e6; }
+        .step.active .step-num { background: #ff5c72; color: #181c24; }
+        .step.done   .step-num { background: #3ddc84; color: #181c24; }
+
+        .flight-bar {
+            background: #181c24;
+            border-bottom: 1px solid #2a2f3a;
+        }
+        .flight-bar .times { color: #f5f5f5; }
+        .flight-bar .label { color: #9aa3b2; }
+        .flight-bar .iata  { color: #d6d9e0; }
+        .flight-bar .price-label { color: #9aa3b2; }
+        .flight-bar .price-val { color: #f5f5f5; }
+        .flight-bar .price-link { color: #ff5c72; }
+        .flight-arrow { color: #ff5c72; }
+
+        .pax-heading { color: #ff5c72; }
+
+        .info-card {
+            background: #14222e;
+            border: 1px solid #2a4258;
+            color: #b9d6ec;
+        }
+        .info-card b { color: #d6ecfb; }
+
+        .form-card {
+            background: #181c24;
+            box-shadow: 0 1px 6px rgba(0,0,0,0.4);
+        }
+        .form-card-title {
+            color: #f5f5f5;
+            border-bottom: 1px solid #2a2f3a;
+        }
+
+        .country-badge {
+            background: #3a2f10;
+            border: 1px solid #b8860b;
+            color: #ffd873;
+        }
+
+        .v-error {
+            background: #2a1418; border-left: 4px solid #ff5c72;
+            color: #ffb3bd;
+        }
+        .v-warning {
+            background: #2b2410; border-left: 4px solid #F0A500;
+            color: #ffe1a3;
+        }
+        .v-success {
+            background: #11261a; border-left: 4px solid #3ddc84;
+            color: #b8f0cd;
+        }
+
+        .stButton > button {
+            background-color: #ff5c72 !important;
+            color: #181c24 !important;
+        }
+        .stButton > button:hover { background-color: #ff8595 !important; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -318,7 +397,7 @@ with col_fn:
     first_name = st.text_input(
         "First Name (& Middle Name, if any) *",
         placeholder="e.g. JOHN FITZGERALD",
-        help="Enter first name and middle name separated by a space."
+        help="Enter first name and middle name separated by a space. No hyphens or apostrophes."
     )
 with col_ln:
     last_name = st.text_input(
@@ -333,8 +412,9 @@ with col_dob:
 with col_mrz:
     passport_mrz = st.text_input(
         "Passport Name as in the MRZ Zone *",
-        placeholder="e.g. KENNEDY<<JOHN<FITZGERALD<<<<<<",
-        help="Machine-readable zone at the bottom of your passport photo page."
+        placeholder="e.g. P<PHLDELA<CRUZ<<MARIA",
+        help="Enter the full MRZ line exactly as printed (e.g. P<PHLDELA<CRUZ<<MARIA). "
+             "Lowercase letters will be converted to uppercase automatically."
     )
 
 # Checkbox: no surname
@@ -345,6 +425,43 @@ st.markdown('</div>', unsafe_allow_html=True)
 # ─────────────────────────────────────────────
 # Validation logic
 # ─────────────────────────────────────────────
+def parse_mrz_name(mrz_raw):
+    """
+    Parse the 'Passport Name as in the MRZ Zone' field.
+
+    Accepts either:
+      - A full MRZ line, e.g.  "P<PHLDELA<CRUZ<<MARIA"
+      - A name-only fragment,  e.g.  "DELA<CRUZ<<MARIA" or "CRUZ<<MARIA"
+
+    Returns (surname, given_name) as uppercase strings with '<' converted
+    to spaces and collapsed. Either part may be empty if not present.
+    """
+    if not mrz_raw:
+        return "", ""
+
+    s = mrz_raw.strip().upper()
+
+    # Strip a leading document-code + issuing-country prefix, e.g. "P<PHL" or "P<USA".
+    # Real MRZ lines start with a document type letter, '<' filler, then the
+    # 3-letter issuing country code. Only strip if this exact pattern is found.
+    m = re.match(r"^[A-Z]<[A-Z]{3}", s)
+    if m:
+        s = s[m.end():]
+
+    s = s.strip("<")  # remove any leading/trailing filler
+
+    if "<<" in s:
+        surname_part, given_part = s.split("<<", 1)
+    else:
+        # No surname/given separator found — treat whole thing as given name
+        surname_part, given_part = "", s
+
+    surname = re.sub(r"<+", " ", surname_part).strip()
+    given = re.sub(r"<+", " ", given_part).strip()
+
+    return surname, given
+
+
 def validate_air_india(title, first_name, last_name, no_surname,
                        is_us_ca, is_canada, is_aus_nz, is_aus, is_nz,
                        passport_mrz=""):
@@ -352,22 +469,9 @@ def validate_air_india(title, first_name, last_name, no_surname,
     ln = last_name.strip().upper()
     fn = first_name.strip().upper()
 
-    # ── Helper: extract given name(s) from MRZ field ─────────────────────────
-    # MRZ field may contain "<<" separators (e.g. "KENNEDY<<JOHN") or be plain text
-    def mrz_given_name(mrz_raw):
-        """Return the given-name portion from the MRZ Name field, uppercased."""
-        if not mrz_raw:
-            return ""
-        s = mrz_raw.strip().upper()
-        # If user typed the full MRZ line (SURNAME<<GIVEN<MIDDLE<<<) take given part
-        if "<<" in s:
-            parts = s.split("<<", 1)
-            given_part = parts[1].replace("<", " ").strip() if len(parts) > 1 else ""
-            return given_part.split()[0] if given_part else ""
-        # Otherwise treat the whole field as the given name (single word expected)
-        return s.split()[0] if s else ""
-
-    mrz_name = mrz_given_name(passport_mrz)   # normalised first given name from MRZ
+    mrz_surname, mrz_given = parse_mrz_name(passport_mrz)
+    # First given-name token from the MRZ (used for "no surname" comparisons)
+    mrz_name = mrz_given.split()[0] if mrz_given else ""
 
     # ── No surname rules ──────────────────────────────────────────────────────
     if no_surname:
@@ -437,9 +541,7 @@ def validate_air_india(title, first_name, last_name, no_surname,
             option_b_ok = fn == title.upper() and ln and ln != title.upper()
             format_ok = option_a_ok or option_b_ok
 
-            # ── NEW: MRZ mismatch check ──────────────────────────────────────
-            # For Option B (fn == title), the Last Name should equal the MRZ given name
-            # For Option A (fn == FNU),   the Last Name should equal the MRZ given name
+            # MRZ mismatch check: the Last Name should equal the MRZ given name
             mrz_mismatch = bool(mrz_name) and ln != mrz_name
 
             if format_ok and mrz_mismatch:
@@ -473,7 +575,7 @@ def validate_air_india(title, first_name, last_name, no_surname,
                 ))
         return issues
 
-    # ── Rule 1: Hyphen or apostrophe in surname ──────────────────────────────
+    # ── Rule 1a: Hyphen or apostrophe in surname ─────────────────────────────
     # Only flag if there's still a hyphen/apostrophe — if user already fixed it (space instead), pass
     if re.search(r"[-']", ln):
         issues.append(("error",
@@ -483,6 +585,17 @@ def validate_air_india(title, first_name, last_name, no_surname,
             "📌 **Example:**\n"
             "> Passport: `JAMES ROBERT BRYCE-BUCHANAN`\n"
             "> Enter as: **Title** → `MR` | **First Name** → `JAMES ROBERT` | **Last Name** → `BRYCE BUCHANAN`"
+        ))
+
+    # ── Rule 1b: Hyphen or apostrophe in first/middle name ───────────────────
+    if re.search(r"[-']", fn):
+        issues.append(("error",
+            "⚠️ **Hyphen or apostrophe detected in the First Name field.**\n\n"
+            "Air India does not allow hyphens or apostrophes in the first/middle name field. "
+            "Delete the hyphen or apostrophe and replace with a **space**.\n\n"
+            "📌 **Example:**\n"
+            "> Passport: `MARY-JANE`\n"
+            "> Enter as: **First Name** → `MARY JANE`"
         ))
 
     # ── Rule 2: Single letter in surname ────────────────────────────────────
@@ -498,7 +611,9 @@ def validate_air_india(title, first_name, last_name, no_surname,
         ))
 
     # ── Rule 3: Middle name required for US / Canada ─────────────────────────
-    if is_us_ca and fn:
+    # Only relevant if the passenger actually has a surname per the MRZ Zone.
+    # If the MRZ Zone shows no surname, the "no surname" workflow / checkbox applies instead.
+    if is_us_ca and fn and mrz_surname:
         name_parts = fn.split()
         if len(name_parts) < 2:
             dest_label = "United States" if not is_canada else "Canada"
@@ -511,12 +626,30 @@ def validate_air_india(title, first_name, last_name, no_surname,
                 "> Enter as: **Title** → `MR` | **First Name** → `JOHN FITZGERALD` | **Last Name** → `KENNEDY`"
             ))
 
+    # ── Rule 4: Name must match the MRZ Zone ─────────────────────────────────
+    if passport_mrz.strip():
+        mrz_full_name = f"{mrz_given} {mrz_surname}".strip() if mrz_surname else mrz_given
+        entered_full_name = f"{fn} {ln}".strip()
+
+        # Compare token sets so word order differences don't cause false negatives,
+        # while still catching genuinely different / missing names.
+        mrz_tokens = set(mrz_full_name.split())
+        entered_tokens = set(entered_full_name.split())
+
+        if mrz_tokens and mrz_tokens != entered_tokens:
+            issues.append(("error",
+                "⚠️ **Name does not match the Passport MRZ Zone.**\n\n"
+                f"You entered: **{title} {entered_full_name}**\n\n"
+                f"The MRZ Zone shows: **{mrz_given}{' ' + mrz_surname if mrz_surname else ''}**\n\n"
+                "Please make sure the First Name and Last Name fields exactly match the name "
+                "in your passport's MRZ Zone (the '<' characters are ignored)."
+            ))
+
     # ── All good ─────────────────────────────────────────────────────────────
     if ln and fn and not issues:
         issues.append(("success",
             f"✅ **Name format looks correct for Air India.**\n\n"
-            f"Booking will be processed as: **{title} {fn} {ln}**\n\n"
-            "Please verify this matches your passport MRZ zone exactly before confirming."
+            f"Booking will be processed as: **{title} {fn} {ln}**"
         ))
 
     if not ln and not fn:
@@ -531,7 +664,15 @@ def validate_air_india(title, first_name, last_name, no_surname,
 validate_btn = st.button("Validate Name & Continue →", use_container_width=False)
 
 if validate_btn:
+    # Always recompute from the CURRENT field values — never reuse cached results,
+    # so every click re-validates against whatever is in the fields right now.
+    st.session_state["last_validation_inputs"] = {
+        "title": title, "first_name": first_name, "last_name": last_name,
+        "no_surname": no_surname, "passport_mrz": passport_mrz,
+    }
+
     if not no_surname and (not first_name.strip() or not last_name.strip()):
+        st.session_state["last_validation_results"] = None
         st.markdown("""
         <div class="v-error">❌ Please fill in both <b>First Name</b> and <b>Surname/Last Name</b> before continuing.</div>
         """, unsafe_allow_html=True)
@@ -541,6 +682,8 @@ if validate_btn:
             is_us_ca, is_canada, is_aus_nz, is_aus, is_nz,
             passport_mrz=passport_mrz
         )
+        st.session_state["last_validation_results"] = results
+
         for severity, msg in results:
             css_class = {"error": "v-error", "warning": "v-warning", "success": "v-success"}.get(severity, "v-error")
             st.markdown(f'<div class="{css_class}">', unsafe_allow_html=True)
