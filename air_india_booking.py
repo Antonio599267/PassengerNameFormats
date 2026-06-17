@@ -387,7 +387,6 @@ st.markdown("""
 # ─────────────────────────────────────────────
 # Form card
 # ─────────────────────────────────────────────
-st.markdown('<div class="form-card">', unsafe_allow_html=True)
 st.markdown('<div class="form-card-title">Please Enter Passenger Details</div>', unsafe_allow_html=True)
 
 col_title, col_fn, col_ln = st.columns([1, 2.5, 2.5])
@@ -411,7 +410,7 @@ with col_dob:
     dob = st.text_input("Date of Birth *", placeholder="DD/MM/YYYY")
 with col_mrz:
     passport_mrz = st.text_input(
-        "Passport Name as in the MRZ Zone *",
+        "Passport Name as in the MRZ *",
         placeholder="e.g. P<PHLDELA<CRUZ<<MARIA",
         help="Enter the full MRZ line exactly as printed (e.g. P<PHLDELA<CRUZ<<MARIA). "
              "Lowercase letters will be converted to uppercase automatically."
@@ -419,8 +418,6 @@ with col_mrz:
 
 # Checkbox: no surname
 no_surname = st.checkbox("I do not have a surname / family name on my travel document")
-
-st.markdown('</div>', unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
 # Validation logic
