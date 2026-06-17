@@ -387,6 +387,7 @@ st.markdown("""
 # ─────────────────────────────────────────────
 # Form card
 # ─────────────────────────────────────────────
+st.markdown('<div class="form-card">', unsafe_allow_html=True)
 st.markdown('<div class="form-card-title">Please Enter Passenger Details</div>', unsafe_allow_html=True)
 
 col_title, col_fn, col_ln = st.columns([1, 2.5, 2.5])
@@ -415,9 +416,12 @@ with col_mrz:
         help="Enter the full MRZ line exactly as printed (e.g. P<PHLDELA<CRUZ<<MARIA). "
              "Lowercase letters will be converted to uppercase automatically."
     )
+    passport_mrz = passport_mrz.upper()  # MRZ is always uppercase
 
 # Checkbox: no surname
 no_surname = st.checkbox("I do not have a surname / family name on my travel document")
+
+st.markdown('</div>', unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
 # Validation logic
@@ -467,8 +471,8 @@ def validate_air_india(title, first_name, last_name, no_surname,
     fn = first_name.strip().upper()
 
     mrz_surname, mrz_given = parse_mrz_name(passport_mrz)
-    # First given-name token from the MRZ (used for "no surname" comparisons)
-    mrz_name = mrz_given.split()[0] if mrz_given else ""
+    # Full given name from MRZ (may be multi-word, e.g. "PRAMOD KUMAR")
+    mrz_name = mrz_given.strip()  # full given name, not just first token
 
     # ── No surname rules ──────────────────────────────────────────────────────
     if no_surname:
