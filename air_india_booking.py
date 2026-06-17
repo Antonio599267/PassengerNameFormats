@@ -466,8 +466,8 @@ def validate_air_india(title, first_name, last_name, no_surname,
     fn = first_name.strip().upper()
 
     mrz_surname, mrz_given = parse_mrz_name(passport_mrz)
-    # First given-name token from the MRZ (used for "no surname" comparisons)
-    mrz_name = mrz_given.split()[0] if mrz_given else ""
+    # Full given name from MRZ (may be multi-word, e.g. "PRAMOD KUMAR")
+    mrz_name = mrz_given.strip()
 
     # ── No surname rules ──────────────────────────────────────────────────────
     if no_surname:
