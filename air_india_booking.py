@@ -387,7 +387,6 @@ st.markdown("""
 # ─────────────────────────────────────────────
 # Form card
 # ─────────────────────────────────────────────
-st.markdown('<div class="form-card">', unsafe_allow_html=True)
 st.markdown('<div class="form-card-title">Please Enter Passenger Details</div>', unsafe_allow_html=True)
 
 col_title, col_fn, col_ln = st.columns([1, 2.5, 2.5])
@@ -408,20 +407,44 @@ with col_ln:
 
 col_dob, col_mrz = st.columns([1, 2])
 with col_dob:
-    dob = st.text_input("Date of Birth *", placeholder="DD/MM/YYYY")
+    dob = st.text_input("Date of Birth *", placeholder="DD/MM/YYYY", key="dob_input")
 with col_mrz:
-    passport_mrz = st.text_input(
+    passport_mrz_raw = st.text_input(
         "Passport Name as in the MRZ *",
         placeholder="e.g. P<PHLDELA<CRUZ<<MARIA",
         help="Enter the full MRZ line exactly as printed (e.g. P<PHLDELA<CRUZ<<MARIA). "
              "Lowercase letters will be converted to uppercase automatically."
     )
-    passport_mrz = passport_mrz.upper()  # MRZ is always uppercase
+    passport_mrz = passport_mrz_raw.upper()  # always uppercase
+
+# Auto-slash for Date of Birth via JS injection
+st.components.v1.html("""
+<script>
+(function() {
+    function attachDobFormatter() {
+        // Find the DOB input by its placeholder text
+        var inputs = window.parent.document.querySelectorAll('input[placeholder="DD/MM/YYYY"]');
+        if (!inputs.length) { setTimeout(attachDobFormatter, 300); return; }
+        var inp = inputs[0];
+        if (inp._dobListenerAttached) return;
+        inp._dobListenerAttached = true;
+        inp.addEventListener('input', function(e) {
+            var v = inp.value.replace(/[^0-9]/g, '');
+            if (v.length >= 3 && v.length <= 4)      inp.value = v.slice(0,2) + '/' + v.slice(2);
+            else if (v.length >= 5)                   inp.value = v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4,8);
+            // Trigger React synthetic event so Streamlit picks up the change
+            var nativeInput = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
+            nativeInput.set.call(inp, inp.value);
+            inp.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+    }
+    attachDobFormatter();
+})();
+</script>
+""", height=0)
 
 # Checkbox: no surname
 no_surname = st.checkbox("I do not have a surname / family name on my travel document")
-
-st.markdown('</div>', unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────
 # Validation logic
@@ -471,8 +494,8 @@ def validate_air_india(title, first_name, last_name, no_surname,
     fn = first_name.strip().upper()
 
     mrz_surname, mrz_given = parse_mrz_name(passport_mrz)
-    # Full given name from MRZ (may be multi-word, e.g. "PRAMOD KUMAR")
-    mrz_name = mrz_given.strip()  # full given name, not just first token
+    # First given-name token from the MRZ (used for "no surname" comparisons)
+    mrz_name = mrz_given.split()[0] if mrz_given else ""
 
     # ── No surname rules ──────────────────────────────────────────────────────
     if no_surname:
@@ -495,9 +518,7 @@ def validate_air_india(title, first_name, last_name, no_surname,
                 ))
             elif format_ok:
                 issues.append(("success",
-                    f"✅ **No Surname – Canada format correctly applied.**\n\n"
-                    f"Booking will be processed as: **{title} {fn} LNU**\n\n"
-                    "This matches Air India's convention for passengers without a surname on Canada flights."
+                    f"✅ Booking will be processed as: **{title} {fn} LNU**"
                 ))
             else:
                 issues.append(("error",
@@ -523,9 +544,7 @@ def validate_air_india(title, first_name, last_name, no_surname,
                 ))
             elif format_ok:
                 issues.append(("success",
-                    f"✅ **No Surname – {country_label} format correctly applied.**\n\n"
-                    f"Booking will be processed as: **{title} {fn} {ln}**\n\n"
-                    f"This matches Air India's convention for passengers without a surname on {country_label} flights."
+                    f"✅ Booking will be processed as: **{title} {fn} {ln}**"
                 ))
             else:
                 issues.append(("error",
@@ -558,9 +577,7 @@ def validate_air_india(title, first_name, last_name, no_surname,
                 ))
             elif format_ok:
                 issues.append(("success",
-                    f"✅ **No Surname – format correctly applied.**\n\n"
-                    f"Booking will be processed as: **{title} {fn} {ln}**\n\n"
-                    "This matches Air India's convention for passengers without a surname."
+                    f"✅ Booking will be processed as: **{title} {fn} {ln}**"
                 ))
             else:
                 issues.append(("error",
@@ -649,8 +666,7 @@ def validate_air_india(title, first_name, last_name, no_surname,
     # ── All good ─────────────────────────────────────────────────────────────
     if ln and fn and not issues:
         issues.append(("success",
-            f"✅ **Name format looks correct for Air India.**\n\n"
-            f"Booking will be processed as: **{title} {fn} {ln}**"
+            f"✅ Booking will be processed as: **{title} {fn} {ln}**"
         ))
 
     if not ln and not fn:
