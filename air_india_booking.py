@@ -407,41 +407,13 @@ with col_ln:
 
 col_dob, col_mrz = st.columns([1, 2])
 with col_dob:
-    dob = st.text_input("Date of Birth *", placeholder="DD/MM/YYYY", key="dob_input")
+    dob = st.text_input("Date of Birth *", placeholder="DD/MM/YYYY")
 with col_mrz:
-    passport_mrz_raw = st.text_input(
+    passport_mrz = st.text_input(
         "Passport Name as in the MRZ *",
         placeholder="e.g. P<PHLDELA<CRUZ<<MARIA",
-        help="Enter the full MRZ line exactly as printed (e.g. P<PHLDELA<CRUZ<<MARIA). "
-             "Lowercase letters will be converted to uppercase automatically."
+        help="Enter the full MRZ line exactly as printed (e.g. P<PHLDELA<CRUZ<<MARIA)."
     )
-    passport_mrz = passport_mrz_raw.upper()  # always uppercase
-
-# Auto-slash for Date of Birth via JS injection
-st.components.v1.html("""
-<script>
-(function() {
-    function attachDobFormatter() {
-        // Find the DOB input by its placeholder text
-        var inputs = window.parent.document.querySelectorAll('input[placeholder="DD/MM/YYYY"]');
-        if (!inputs.length) { setTimeout(attachDobFormatter, 300); return; }
-        var inp = inputs[0];
-        if (inp._dobListenerAttached) return;
-        inp._dobListenerAttached = true;
-        inp.addEventListener('input', function(e) {
-            var v = inp.value.replace(/[^0-9]/g, '');
-            if (v.length >= 3 && v.length <= 4)      inp.value = v.slice(0,2) + '/' + v.slice(2);
-            else if (v.length >= 5)                   inp.value = v.slice(0,2) + '/' + v.slice(2,4) + '/' + v.slice(4,8);
-            // Trigger React synthetic event so Streamlit picks up the change
-            var nativeInput = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value');
-            nativeInput.set.call(inp, inp.value);
-            inp.dispatchEvent(new Event('input', { bubbles: true }));
-        });
-    }
-    attachDobFormatter();
-})();
-</script>
-""", height=0)
 
 # Checkbox: no surname
 no_surname = st.checkbox("I do not have a surname / family name on my travel document")
