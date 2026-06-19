@@ -334,7 +334,7 @@ st.markdown("""
         <span class="step-num">2</span> Journey Details
     </div>
     <div class="step">
-        <span class="step-num">3</span> Review &amp; Payment
+        <span class="step-num">3</span> Payment
     </div>
 </div>
 """, unsafe_allow_html=True)
