@@ -281,6 +281,35 @@ st.markdown("""
         }
         .stButton > button:hover { background-color: #ff8595 !important; }
     }
+
+    /* ── Hide Streamlit's "Press Enter to apply" input hint ── */
+    [data-testid="InputInstructions"] { display: none !important; }
+
+    /* ── Mobile-responsive stepper ── */
+    @media (max-width: 600px) {
+        .stepper {
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            justify-content: flex-start;
+            -webkit-overflow-scrolling: touch;
+        }
+        .step {
+            padding: 12px 14px;
+            font-size: 0.66rem;
+            gap: 5px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .step-num {
+            width: 18px; height: 18px;
+            font-size: 0.62rem;
+        }
+        .ai-nav { padding: 0 16px; }
+        .ai-logo { font-size: 1.2rem; }
+        .flight-bar { padding: 10px 16px; flex-wrap: wrap; gap: 10px; }
+        .main-wrap { padding: 0 12px; }
+        .form-card { padding: 18px 16px; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -317,8 +346,7 @@ st.markdown('<div style="max-width:900px; margin: 24px auto 0 auto; padding: 0 1
 
 selected_flight_key = st.selectbox(
     "Select your flight",
-    list(FLIGHTS.keys()),
-    help="Choose your flight. Destination country determines which naming rules apply automatically."
+    list(FLIGHTS.keys())
 )
 flight = FLIGHTS[selected_flight_key]
 dest_country = flight["country"]
