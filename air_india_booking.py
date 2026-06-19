@@ -391,18 +391,16 @@ st.markdown('<div class="form-card-title">Please Enter Passenger Details</div>',
 
 col_title, col_fn, col_ln = st.columns([1, 2.5, 2.5])
 with col_title:
-    title = st.selectbox("Title *", ["MR", "MRS", "MS", "MISS", "DR", "PROF"])
+    title = st.selectbox("Title *", ["MR", "MRS", "MS", "MISS", "MSTR", "DOCTOR"])
 with col_fn:
     first_name = st.text_input(
         "First Name (& Middle Name, if any) *",
-        placeholder="e.g. JOHN FITZGERALD",
-        help="Enter first name and middle name separated by a space. No hyphens or apostrophes."
+        placeholder="e.g. JOHN FITZGERALD"
     )
 with col_ln:
     last_name = st.text_input(
         "Surname / Last Name *",
-        placeholder="e.g. KENNEDY",
-        help="Enter surname only. No hyphens or apostrophes."
+        placeholder="e.g. KENNEDY"
     )
 
 col_dob, col_mrz = st.columns([1, 2])
@@ -411,8 +409,7 @@ with col_dob:
 with col_mrz:
     passport_mrz = st.text_input(
         "Passport Name as in the MRZ *",
-        placeholder="e.g. P<PHLDELA<CRUZ<<MARIA",
-        help="Enter the full MRZ line exactly as printed (e.g. P<PHLDELA<CRUZ<<MARIA)."
+        placeholder="e.g. DELA<CRUZ<<MARIA"
     )
 
 # Checkbox: no surname
